@@ -1,153 +1,71 @@
 import React, { useEffect, useState } from 'react';
 import { createClient } from '@supabase/supabase-js';
 
-// Connection to your Supabase project
 const supabase = createClient(
   import.meta.env?.VITE_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || '',
   import.meta.env?.VITE_SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
 );
 
-export default function CircuitburstApp() {
+export default function App() {
+  const [view, setView] = useState('feed'); // 'feed' or 'dms'
   const [posts, setPosts] = useState([]);
-  const [newPost, setNewPost] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [messages, setMessages] = useState([]);
+  const [input, setInput] = useState('');
+  const [recipient, setRecipient] = useState('');
+  const MY_NAME = 'Founder';
 
-  // 1. Fetch posts from the database (Newest first)
-  const fetchPosts = async () => {
-    const { data, error } = await supabase
-      .from('posts')
-      .select('*')
-      .order('created_at', { ascending: false });
-    
-    if (error) console.error("Error fetching:", error.message);
-    else setPosts(data || []);
+  const loadData = async () => {
+    const { data: p } = await supabase.from('posts').select('*').order('created_at', { ascending: false });
+    setPosts(p || []);
+    const { data: m } = await supabase.from('messages').select('*').order('created_at', { ascending: true });
+    setMessages(m || []);
   };
 
-  useEffect(() => {
-    fetchPosts();
-  }, []);
+  useEffect(() => { loadData(); }, []);
 
-  // 2. Handle Submitting a New Post
-  const handlePost = async () => {
-    if (!newPost.trim()) return;
-    setLoading(true);
-    
-    const { error } = await supabase.from('posts').insert([
-      { 
-        content: newPost, 
-        username: 'Founder' // You can change this to your name!
-      }
-    ]);
-    
-    if (error) {
-      alert("Error posting: " + error.message);
-    } else {
-      setNewPost('');
-      fetchPosts();
-    }
-    setLoading(false);
+  const sendPost = async () => {
+    await supabase.from('posts').insert([{ content: input, username: MY_NAME }]);
+    setInput(''); loadData();
   };
 
-  // 3. Handle Deleting a Post
-  const handleDelete = async (id) => {
-    const { error } = await supabase.from('posts').delete().eq('id', id);
-    if (error) alert("Error deleting: " + error.message);
-    else fetchPosts();
+  const sendDM = async () => {
+    await supabase.from('messages').insert([{ sender_id: MY_NAME, receiver_id: recipient, content: input }]);
+    setInput(''); loadData();
   };
 
   return (
-    <div style={{ 
-      padding: '40px 20px', 
-      maxWidth: '600px', 
-      margin: '0 auto', 
-      fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-      backgroundColor: '#f9f9f9',
-      minHeight: '100vh'
-    }}>
-      <header style={{ textAlign: 'center', marginBottom: '40px' }}>
-        <h1 style={{ color: '#0070f3', fontSize: '2.5rem', margin: '0' }}>⚡ Circuitburst</h1>
-        <p style={{ color: '#666' }}>Founder Portal</p>
-      </header>
+    <div style={{ maxWidth: '500px', margin: 'auto', padding: '20px', fontFamily: 'sans-serif' }}>
+      <h1 style={{ textAlign: 'center', color: '#0070f3' }}>⚡ CIRCUITBURST</h1>
       
-      {/* POST BOX */}
-      <div style={{ 
-        backgroundColor: '#fff', 
-        padding: '20px', 
-        borderRadius: '12px', 
-        boxShadow: '0 4px 12px rgba(0,0,0,0.05)',
-        marginBottom: '30px' 
-      }}>
-        <textarea 
-          placeholder="What's on your mind, Founder?"
-          value={newPost}
-          onChange={(e) => setNewPost(e.target.value)}
-          style={{ 
-            width: '100%', 
-            height: '100px', 
-            padding: '12px', 
-            borderRadius: '8px', 
-            border: '1px solid #ddd',
-            fontSize: '16px',
-            boxSizing: 'border-box',
-            resize: 'none'
-          }}
-        />
-        <button 
-          onClick={handlePost}
-          disabled={loading}
-          style={{ 
-            marginTop: '12px', 
-            width: '100%',
-            padding: '12px', 
-            background: '#0070f3', 
-            color: '#fff', 
-            border: 'none', 
-            borderRadius: '8px', 
-            fontWeight: 'bold',
-            cursor: 'pointer',
-            opacity: loading ? 0.7 : 1
-          }}
-        >
-          {loading ? 'Sending...' : 'Post to Feed'}
-        </button>
+      {/* NAV BAR - This makes sure you can see the DM option */}
+      <div style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
+        <button onClick={() => setView('feed')} style={{ flex: 1, padding: '10px', background: view === 'feed' ? '#0070f3' : '#eee', color: view === 'feed' ? '#fff' : '#000', border: 'none', borderRadius: '5px' }}>Public Feed</button>
+        <button onClick={() => setView('dms')} style={{ flex: 1, padding: '10px', background: view === 'dms' ? '#0070f3' : '#eee', color: view === 'dms' ? '#fff' : '#000', border: 'none', borderRadius: '5px' }}>Private DMs</button>
       </div>
 
-      {/* FEED */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-        {posts.map(p => (
-          <div key={p.id} style={{ 
-            backgroundColor: '#fff', 
-            padding: '20px', 
-            borderRadius: '12px', 
-            border: '1px solid #eee',
-            position: 'relative'
-          }}>
-            <div style={{ marginBottom: '8px' }}>
-              <span style={{ fontWeight: 'bold', color: '#333' }}>@{p.username || 'Anonymous'}</span>
-              <span style={{ fontSize: '0.8rem', color: '#999', marginLeft: '10px' }}>
-                {new Date(p.created_at).toLocaleTimeString()}
-              </span>
-            </div>
-            <p style={{ margin: '0', color: '#444', lineHeight: '1.5' }}>{p.content}</p>
-            
-            <button 
-              onClick={() => handleDelete(p.id)}
-              style={{ 
-                position: 'absolute', 
-                top: '15px', 
-                right: '15px', 
-                background: 'none', 
-                border: 'none', 
-                color: '#ff4d4f', 
-                cursor: 'pointer',
-                fontSize: '0.8rem'
-              }}
-            >
-              Delete
-            </button>
+      {view === 'feed' ? (
+        <div>
+          <textarea value={input} onChange={e => setInput(e.target.value)} placeholder="What's happening?" style={{ width: '100%', height: '60px' }} />
+          <button onClick={sendPost} style={{ width: '100%', padding: '10px', marginTop: '5px', background: '#0070f3', color: '#fff', border: 'none' }}>Post Globally</button>
+          {posts.map(p => <div key={p.id} style={{ borderBottom: '1px solid #eee', padding: '10px 0' }}><strong>@{p.username}:</strong> {p.content}</div>)}
+        </div>
+      ) : (
+        <div>
+          <input value={recipient} onChange={e => setRecipient(e.target.value)} placeholder="Who to message?" style={{ width: '100%', marginBottom: '5px' }} />
+          <textarea value={input} onChange={e => setInput(e.target.value)} placeholder="Type a secret message..." style={{ width: '100%', height: '60px' }} />
+          <button onClick={sendDM} style={{ width: '100%', padding: '10px', marginTop: '5px', background: '#333', color: '#fff', border: 'none' }}>Send Private DM</button>
+          <div style={{ marginTop: '20px' }}>
+            {messages.map(m => (
+              <div key={m.id} style={{ marginBottom: '10px', textAlign: m.sender_id === MY_NAME ? 'right' : 'left' }}>
+                <div style={{ display: 'inline-block', padding: '10px', borderRadius: '10px', background: m.sender_id === MY_NAME ? '#0070f3' : '#eee', color: m.sender_id === MY_NAME ? '#fff' : '#000' }}>
+                  <small style={{ display: 'block', fontSize: '10px' }}>{m.sender_id === MY_NAME ? `To: ${m.receiver_id}` : `From: ${m.sender_id}`}</small>
+                  {m.content}
+                </div>
+              </div>
+            ))}
           </div>
-        ))}
-      </div>
+        </div>
+      )}
     </div>
   );
 }
