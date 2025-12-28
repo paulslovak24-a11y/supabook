@@ -1,36 +1,40 @@
 import React, { useEffect, useState } from 'react';
 import { createClient } from '@supabase/supabase-js';
 
-const supabase = createClient(
-  import.meta.env?.VITE_SUPABASE_URL || '',
-  import.meta.env?.VITE_SUPABASE_ANON_KEY || ''
-);
+// UNIVERSAL KEYS: This checks for every possible way Render stores your keys
+const supabaseUrl = import.meta.env?.VITE_SUPABASE_URL || process.env?.NEXT_PUBLIC_SUPABASE_URL || '';
+const supabaseAnonKey = import.meta.env?.VITE_SUPABASE_ANON_KEY || process.env?.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+
+const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 export default function App() {
   const [session, setSession] = useState(null);
-  const [loading, setLoading] = useState(true); // Added loading state
+  const [loading, setLoading] = useState(true);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [posts, setPosts] = useState([]);
   const [input, setInput] = useState('');
 
   useEffect(() => {
-    // 1. Check for session safely
-    const getSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      setSession(session);
-      setLoading(false);
+    const initSession = async () => {
+      try {
+        const { data } = await supabase.auth.getSession();
+        setSession(data.session);
+      } catch (e) {
+        console.error("Auth error", e);
+      } finally {
+        setLoading(false);
+      }
     };
 
-    getSession();
+    initSession();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
     });
 
     loadData();
-
-    return () => subscription.unsubscribe();
+    return () => subscription?.unsubscribe();
   }, []);
 
   const loadData = async () => {
@@ -38,76 +42,46 @@ export default function App() {
     if (data) setPosts(data);
   };
 
-  const handleSignUp = async () => {
-    const { error } = await supabase.auth.signUp({ email, password });
-    if (error) alert(error.message);
-    else alert("Signup successful! You can now log in.");
-  };
-
-  const handleLogin = async () => {
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) alert(error.message);
-  };
-
-  const sendPost = async () => {
-    if (!input.trim() || !session) return;
-    const userHandle = session.user.email ? session.user.email.split('@')[0] : 'Member';
+  const handleLoginAction = async (type) => {
+    setLoading(true);
+    const { error } = type === 'login' 
+      ? await supabase.auth.signInWithPassword({ email, password })
+      : await supabase.auth.signUp({ email, password });
     
-    const { error } = await supabase.from('posts').insert([
-      { content: input, username: userHandle }
-    ]);
-    
-    if (!error) {
-      setInput('');
-      loadData();
-    }
+    if (error) alert(error.message);
+    setLoading(false);
   };
 
-  // 1. Show nothing or a spinner while checking the session
-  if (loading) return <div style={{ textAlign: 'center', marginTop: '50px' }}>Loading Circuitburst...</div>;
+  if (loading) return <div style={{ padding: '50px', textAlign: 'center' }}>⚡ Connecting to Circuitburst...</div>;
 
-  // 2. LOGIN SCREEN (If no user)
   if (!session) {
     return (
       <div style={{ maxWidth: '400px', margin: '80px auto', padding: '20px', textAlign: 'center', fontFamily: 'sans-serif' }}>
-        <h1 style={{ color: '#0070f3' }}>⚡ Circuitburst</h1>
-        <p>Enter the Network</p>
-        <input type="email" placeholder="Email" onChange={e => setEmail(e.target.value)} style={{ width: '100%', padding: '12px', marginBottom: '10px', boxSizing: 'border-box' }} />
-        <input type="password" placeholder="Password" onChange={e => setPassword(e.target.value)} style={{ width: '100%', padding: '12px', marginBottom: '10px', boxSizing: 'border-box' }} />
-        <button onClick={handleLogin} style={{ width: '100%', padding: '12px', background: '#0070f3', color: '#fff', border: 'none', borderRadius: '5px', cursor: 'pointer', fontWeight: 'bold' }}>Login</button>
-        <button onClick={handleSignUp} style={{ marginTop: '15px', background: 'none', border: 'none', color: '#0070f3', cursor: 'pointer' }}>Create Founder Account</button>
+        <h1>⚡ Circuitburst</h1>
+        <input type="email" placeholder="Email" onChange={e => setEmail(e.target.value)} style={{ width: '100%', padding: '12px', marginBottom: '10px' }} />
+        <input type="password" placeholder="Password" onChange={e => setPassword(e.target.value)} style={{ width: '100%', padding: '12px', marginBottom: '10px' }} />
+        <button onClick={() => handleLoginAction('login')} style={{ width: '100%', padding: '12px', background: '#0070f3', color: '#fff', border: 'none', borderRadius: '5px' }}>Login</button>
+        <button onClick={() => handleLoginAction('signup')} style={{ marginTop: '10px', background: 'none', border: 'none', color: '#0070f3', cursor: 'pointer' }}>Create Account</button>
       </div>
     );
   }
 
-  // 3. MAIN APP (If logged in)
   return (
     <div style={{ maxWidth: '500px', margin: 'auto', padding: '20px', fontFamily: 'sans-serif' }}>
-      <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-        <h2 style={{ color: '#0070f3', margin: 0 }}>⚡ Circuitburst</h2>
-        <button onClick={() => supabase.auth.signOut()} style={{ background: '#eee', border: 'none', padding: '5px 10px', borderRadius: '5px', cursor: 'pointer' }}>Logout</button>
-      </header>
-      
-      <div style={{ background: '#f0f7ff', padding: '10px', borderRadius: '8px', marginBottom: '20px' }}>
-        Welcome, <strong>{session.user.email}</strong>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '20px' }}>
+        <h2>⚡ Circuitburst</h2>
+        <button onClick={() => supabase.auth.signOut()}>Logout</button>
       </div>
-
-      <textarea 
-        value={input} 
-        onChange={e => setInput(e.target.value)} 
-        placeholder="Broadcast to the network..." 
-        style={{ width: '100%', height: '80px', padding: '10px', boxSizing: 'border-box', borderRadius: '8px', border: '1px solid #ccc' }} 
-      />
-      <button onClick={sendPost} style={{ width: '100%', padding: '12px', marginTop: '10px', background: '#0070f3', color: '#fff', border: 'none', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}>Broadcast</button>
-
-      <div style={{ marginTop: '30px' }}>
-        {posts.map(p => (
-          <div key={p.id} style={{ borderBottom: '1px solid #eee', padding: '15px 0' }}>
-            <span style={{ color: '#0070f3', fontWeight: 'bold' }}>@{p.username || 'Anonymous'}</span>
-            <p style={{ margin: '5px 0 0 0', color: '#333' }}>{p.content}</p>
-          </div>
-        ))}
-      </div>
+      <textarea value={input} onChange={e => setInput(e.target.value)} placeholder="Broadcast..." style={{ width: '100%', height: '60px' }} />
+      <button onClick={async () => { 
+        await supabase.from('posts').insert([{ content: input, username: session.user.email.split('@')[0] }]);
+        setInput(''); loadData();
+      }} style={{ width: '100%', padding: '10px', background: '#0070f3', color: '#fff', border: 'none' }}>Post</button>
+      {posts.map(p => (
+        <div key={p.id} style={{ borderBottom: '1px solid #eee', padding: '15px 0' }}>
+          <strong>@{p.username}:</strong> {p.content}
+        </div>
+      ))}
     </div>
   );
 }
