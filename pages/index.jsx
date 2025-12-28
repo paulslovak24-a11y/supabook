@@ -7,13 +7,14 @@ const supabase = createClient(
 );
 
 export default function App() {
-  const [view, setView] = useState('feed'); // 'feed' or 'dms'
+  const [view, setView] = useState('feed');
   const [posts, setPosts] = useState([]);
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [recipient, setRecipient] = useState('');
   const MY_NAME = 'Founder';
 
+  // 1. Initial Data Load
   const loadData = async () => {
     const { data: p } = await supabase.from('posts').select('*').order('created_at', { ascending: false });
     setPosts(p || []);
@@ -21,23 +22,46 @@ export default function App() {
     setMessages(m || []);
   };
 
-  useEffect(() => { loadData(); }, []);
+  // 2. REALTIME SUBSCRIPTION
+  useEffect(() => {
+    loadData();
+
+    // Listen for new Posts
+    const postChannel = supabase
+      .channel('public:posts')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'posts' }, (payload) => {
+        setPosts((prev) => [payload.new, ...prev]);
+      })
+      .subscribe();
+
+    // Listen for new DMs
+    const msgChannel = supabase
+      .channel('public:messages')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, (payload) => {
+        setMessages((prev) => [...prev, payload.new]);
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(postChannel);
+      supabase.removeChannel(msgChannel);
+    };
+  }, []);
 
   const sendPost = async () => {
     await supabase.from('posts').insert([{ content: input, username: MY_NAME }]);
-    setInput(''); loadData();
+    setInput('');
   };
 
   const sendDM = async () => {
     await supabase.from('messages').insert([{ sender_id: MY_NAME, receiver_id: recipient, content: input }]);
-    setInput(''); loadData();
+    setInput('');
   };
 
   return (
     <div style={{ maxWidth: '500px', margin: 'auto', padding: '20px', fontFamily: 'sans-serif' }}>
       <h1 style={{ textAlign: 'center', color: '#0070f3' }}>⚡ CIRCUITBURST</h1>
       
-      {/* NAV BAR - This makes sure you can see the DM option */}
       <div style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
         <button onClick={() => setView('feed')} style={{ flex: 1, padding: '10px', background: view === 'feed' ? '#0070f3' : '#eee', color: view === 'feed' ? '#fff' : '#000', border: 'none', borderRadius: '5px' }}>Public Feed</button>
         <button onClick={() => setView('dms')} style={{ flex: 1, padding: '10px', background: view === 'dms' ? '#0070f3' : '#eee', color: view === 'dms' ? '#fff' : '#000', border: 'none', borderRadius: '5px' }}>Private DMs</button>
