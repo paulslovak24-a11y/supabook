@@ -1,19 +1,21 @@
-import React from 'react';
-import { createClient } from '@supabase/supabase-js';
+import React from 'react'
+import ReactDOM from 'react-dom/client'
 
-const supabase = createClient(
-  import.meta.env.VITE_SUPABASE_URL || "",
-  import.meta.env.VITE_SUPABASE_ANON_KEY || ""
-);
-
-export default function App() {
+// This is your entire app in one place to prevent "File Not Found" errors
+function App() {
   return (
-    <div style={{ padding: '40px', textAlign: 'center', fontFamily: 'sans-serif' }}>
-      <h1 style={{ color: '#0070f3' }}>⚡ Circuitburst</h1>
-      <p>System Online</p>
-      <div style={{ marginTop: '20px', fontSize: '0.9rem', color: '#666' }}>
-        Connection: {import.meta.env.VITE_SUPABASE_URL ? "Linked" : "Missing Keys"}
+    <div style={{ padding: '40px', textAlign: 'center', backgroundColor: '#1a1a1a', color: 'white', minHeight: '100vh', fontFamily: 'sans-serif' }}>
+      <h1 style={{ color: '#646cff' }}>⚡ Circuitburst Online</h1>
+      <p>The build was successful!</p>
+      <div style={{ marginTop: '20px', padding: '20px', border: '1px solid #333', borderRadius: '8px' }}>
+        <p>Your site is now running as a Web Service on Render.</p>
       </div>
     </div>
-  );
+  )
 }
+
+ReactDOM.createRoot(document.getElementById('root')).render(
+  <React.StrictMode>
+    <App />
+  </React.StrictMode>
+)
