@@ -5,7 +5,7 @@ import { createClient } from '@supabase/supabase-js'
 // PASTE YOUR KEYS HERE
 const supabase = createClient(
   'https://your-project-id.supabase.co', // <https://qebchzrttfhkaufuolrt.supabase.co 
-  'your-anon-key-goes-here'              // <--- Paste anon public key here
+  'your-anon-key-goes-here'              // <eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFlYmNoenJ0dGZoa2F1ZnVvbHJ0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY3Mzg4NDAsImV4cCI6MjA4MjMxNDg0MH0.6eWlFuvxAVkFKOCzxs7jgkqijMoKQt5jMG0eESa0Uj0 
 )
 
 function App() {
