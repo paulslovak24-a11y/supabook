@@ -8,96 +8,104 @@ const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYm
 const supabase = createClient(supabaseUrl, supabaseAnonKey)
 
 function App() {
-  const [user, setUser] = useState(null)
-  const [loading, setLoading] = useState(true)
-  const [posts, setPosts] = useState([])
-  const [postText, setPostText] = useState('')
-  const [email, setEmail] = useState('')
+  const [user, setUser] = useState(null);
+  const [activeTab, setActiveTab] = useState('feed'); // 'feed' or 'dms'
+  const [posts, setPosts] = useState([]);
+  const [dms, setDms] = useState([]);
+  const [inputText, setInputText] = useState('');
+  const [recipient, setRecipient] = useState('');
+  const [email, setEmail] = useState('');
 
-  // 1. HARD CHECK for user session on load
   useEffect(() => {
-    const checkUser = async () => {
-      const { data: { session } } = await supabase.auth.getSession()
-      setUser(session?.user ?? null)
-      setLoading(false)
-      if (session?.user) fetchPosts()
-    }
-    checkUser()
-  }, [])
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user ?? null);
+      if (session?.user) {
+        fetchPosts();
+        fetchDMs(session.user.email);
+      }
+    });
+  }, []);
 
-  // 2. FETCH posts from Database
-  const fetchPosts = async () => {
-    const { data, error } = await supabase
-      .from('posts')
+  async function fetchPosts() {
+    const { data } = await supabase.from('posts').select('*').order('created_at', { ascending: false });
+    if (data) setPosts(data);
+  }
+
+  async function fetchDMs(myEmail) {
+    const { data } = await supabase.from('messages')
       .select('*')
-      .order('created_at', { ascending: false })
-    if (error) console.error("Fetch error:", error)
-    else setPosts(data || [])
+      .or(`sender_email.eq.${myEmail},receiver_email.eq.${myEmail}`)
+      .order('created_at', { ascending: true });
+    if (data) setDms(data);
   }
 
-  // 3. LOGIN function
-  const handleLogin = async (e) => {
-    e.preventDefault()
-    const { error } = await supabase.auth.signInWithOtp({ 
-      email,
-      options: { emailRedirectTo: 'https://circuitburst.onrender.com' }
-    })
-    if (error) alert("Login Error: " + error.message)
-    else alert("Check your email for the magic link!")
-  }
-
-  // 4. POST function
   const handlePost = async (e) => {
-    e.preventDefault()
-    if (!postText) return
-    
-    const { error } = await supabase
-      .from('posts')
-      .insert([{ user_email: user.email, content: postText }])
-
-    if (error) {
-      alert("Post Error: " + error.message)
-    } else {
-      setPostText('')
-      fetchPosts() // Immediately show the new post
-    }
+    e.preventDefault();
+    if (!inputText.trim()) return;
+    const { error } = await supabase.from('posts').insert([{ user_email: user.email, content: inputText }]);
+    if (!error) { setInputText(''); fetchPosts(); }
   }
 
-  if (loading) return <div style={{color: 'white', textAlign: 'center', padding: '50px'}}>Loading Circuitburst...</div>
+  const handleSendDM = async (e) => {
+    e.preventDefault();
+    if (!inputText.trim() || !recipient.trim()) return;
+    const { error } = await supabase.from('messages').insert([
+      { sender_email: user.email, receiver_email: recipient, message_content: inputText }
+    ]);
+    if (!error) { setInputText(''); fetchDMs(user.email); alert("Message sent!"); }
+  }
+
+  if (!user) {
+    return (
+      <div style={{ backgroundColor: '#0f172a', color: 'white', minHeight: '100vh', padding: '50px', textAlign: 'center' }}>
+        <h1>⚡ Circuitburst</h1>
+        <form onSubmit={async (e) => { e.preventDefault(); await supabase.auth.signInWithOtp({ email }); alert("Check email!"); }}>
+          <input type="email" placeholder="Email" onChange={e => setEmail(e.target.value)} style={{ padding: '10px', borderRadius: '5px' }} />
+          <button type="submit" style={{ padding: '10px', marginLeft: '10px', background: '#38bdf8', border: 'none', borderRadius: '5px' }}>Login</button>
+        </form>
+      </div>
+    )
+  }
 
   return (
-    <div style={{ backgroundColor: '#0f172a', color: 'white', minHeight: '100vh', fontFamily: 'sans-serif', padding: '20px' }}>
-      <h1 style={{ textAlign: 'center', color: '#38bdf8' }}>⚡ Circuitburst</h1>
+    <div style={{ backgroundColor: '#0f172a', color: 'white', minHeight: '100vh', fontFamily: 'sans-serif' }}>
+      <nav style={{ display: 'flex', justifyContent: 'center', gap: '20px', padding: '20px', background: '#1e293b' }}>
+        <button onClick={() => setActiveTab('feed')} style={{ background: activeTab === 'feed' ? '#38bdf8' : 'none', color: 'white', border: '1px solid #38bdf8', padding: '10px', borderRadius: '5px' }}>Newsfeed</button>
+        <button onClick={() => setActiveTab('dms')} style={{ background: activeTab === 'dms' ? '#38bdf8' : 'none', color: 'white', border: '1px solid #38bdf8', padding: '10px', borderRadius: '5px' }}>DMs</button>
+        <button onClick={() => supabase.auth.signOut().then(() => window.location.reload())} style={{ background: 'none', color: '#ef4444', border: 'none' }}>Logout</button>
+      </nav>
 
-      {!user ? (
-        /* LOGIN SCREEN */
-        <div style={{ maxWidth: '400px', margin: '50px auto', background: '#1e293b', padding: '30px', borderRadius: '15px' }}>
-          <h2>Sign In / Sign Up</h2>
-          <form onSubmit={handleLogin}>
-            <input type="email" placeholder="Email" required value={email} onChange={(e) => setEmail(e.target.value)}
-              style={{ width: '90%', padding: '10px', marginBottom: '10px', borderRadius: '5px' }} />
-            <button type="submit" style={{ width: '100%', padding: '10px', backgroundColor: '#38bdf8', border: 'none', borderRadius: '5px', fontWeight: 'bold' }}>Send Magic Link</button>
-          </form>
-        </div>
-      ) : (
-        /* LOGGED IN CONTENT */
-        <div style={{ maxWidth: '600px', margin: '0 auto' }}>
-          <p>Logged in as: <strong>{user.email}</strong> | <button onClick={() => supabase.auth.signOut().then(() => window.location.reload())} style={{background: 'none', color: '#ef4444', border: 'none', cursor: 'pointer'}}>Sign Out</button></p>
-          
-          <form onSubmit={handlePost} style={{ marginBottom: '30px' }}>
-            <textarea value={postText} onChange={(e) => setPostText(e.target.value)} placeholder="What's on your mind?"
-              style={{ width: '100%', padding: '10px', borderRadius: '10px', background: '#1e293b', color: 'white', border: '1px solid #334155' }} />
-            <button type="submit" style={{ marginTop: '10px', padding: '10px 25px', backgroundColor: '#38bdf8', border: 'none', borderRadius: '5px', fontWeight: 'bold' }}>Post</button>
-          </form>
-
-          {posts.map(p => (
-            <div key={p.id} style={{ background: '#1e293b', padding: '15px', borderRadius: '10px', marginBottom: '10px' }}>
-              <small style={{ color: '#38bdf8' }}>{p.user_email}</small>
-              <p>{p.content}</p>
-            </div>
-          ))}
-        </div>
-      )}
+      <main style={{ maxWidth: '500px', margin: '20px auto', padding: '0 15px' }}>
+        {activeTab === 'feed' ? (
+          <div>
+            <form onSubmit={handlePost}>
+              <textarea value={inputText} onChange={e => setInputText(e.target.value)} placeholder="Post to the feed..." style={{ width: '100%', borderRadius: '10px', padding: '10px', background: '#1e293b', color: 'white' }} />
+              <button type="submit" style={{ width: '100%', marginTop: '10px', padding: '10px', background: '#38bdf8', border: 'none', borderRadius: '5px', fontWeight: 'bold' }}>Post</button>
+            </form>
+            {posts.map(p => (
+              <div key={p.id} style={{ background: '#1e293b', padding: '15px', borderRadius: '10px', marginTop: '10px' }}>
+                <small style={{ color: '#38bdf8' }}>{p.user_email}</small>
+                <p>{p.content}</p>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div>
+            <form onSubmit={handleSendDM} style={{ background: '#1e293b', padding: '15px', borderRadius: '10px' }}>
+              <input type="email" placeholder="Recipient's Email" value={recipient} onChange={e => setRecipient(e.target.value)} style={{ width: '95%', padding: '10px', marginBottom: '10px', borderRadius: '5px' }} />
+              <textarea value={inputText} onChange={e => setInputText(e.target.value)} placeholder="Private message..." style={{ width: '95%', padding: '10px', borderRadius: '5px' }} />
+              <button type="submit" style={{ width: '100%', marginTop: '10px', padding: '10px', background: '#6366f1', color: 'white', border: 'none', borderRadius: '5px' }}>Send DM</button>
+            </form>
+            <h3 style={{ marginTop: '30px' }}>Your Conversations</h3>
+            {dms.map(m => (
+              <div key={m.id} style={{ background: m.sender_email === user.email ? '#334155' : '#1e293b', padding: '10px', borderRadius: '10px', marginBottom: '10px' }}>
+                <small style={{ color: '#94a3b8' }}>{m.sender_email === user.email ? "You to " + m.receiver_email : m.sender_email + " to You"}</small>
+                <p>{m.message_content}</p>
+              </div>
+            ))}
+          </div>
+        )}
+      </main>
     </div>
   )
 }
