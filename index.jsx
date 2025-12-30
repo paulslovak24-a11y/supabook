@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react'
 import ReactDOM from 'react-dom/client'
 import { createClient } from '@supabase/supabase-js'
 
-// --- YOUR VERIFIED CONNECTION ---
 const supabaseUrl = 'https://qebchzrttfhkaufuolrt.supabase.co'
 const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFlYmNoenJ0dGZoa2F1ZnVvbHJ0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY3Mzg4NDAsImV4cCI6MjA4MjMxNDg0MH0.6eWlFuvxAVkFKOCzxs7jgkqijMoKQt5jMG0eESa0Uj0'
 
@@ -10,99 +9,97 @@ const supabase = createClient(supabaseUrl, supabaseAnonKey)
 
 function App() {
   const [user, setUser] = useState(null)
-  const [activeTab, setActiveTab] = useState('feed')
+  const [loading, setLoading] = useState(true)
+  const [posts, setPosts] = useState([])
   const [postText, setPostText] = useState('')
-  const [posts, setPosts] = useState([
-    { id: 1, user: 'Admin', content: 'Welcome to the Circuitburst feed!' }
-  ])
+  const [email, setEmail] = useState('')
 
+  // 1. HARD CHECK for user session on load
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    const checkUser = async () => {
+      const { data: { session } } = await supabase.auth.getSession()
       setUser(session?.user ?? null)
-    })
+      setLoading(false)
+      if (session?.user) fetchPosts()
+    }
+    checkUser()
   }, [])
 
-  const handlePost = (e) => {
-    e.preventDefault()
-    if (!postText) return
-    const newPost = { id: Date.now(), user: user?.email || 'Guest', content: postText }
-    setPosts([newPost, ...posts])
-    setPostText('')
+  // 2. FETCH posts from Database
+  const fetchPosts = async () => {
+    const { data, error } = await supabase
+      .from('posts')
+      .select('*')
+      .order('created_at', { ascending: false })
+    if (error) console.error("Fetch error:", error)
+    else setPosts(data || [])
   }
 
-  // --- STYLES ---
-  const navStyle = { display: 'flex', justifyContent: 'center', gap: '20px', padding: '15px', background: '#1e293b' }
-  const btnStyle = (tab) => ({
-    background: activeTab === tab ? '#38bdf8' : 'none',
-    color: activeTab === tab ? '#0f172a' : 'white',
-    border: '1px solid #38bdf8', padding: '8px 15px', borderRadius: '5px', cursor: 'pointer', fontWeight: 'bold'
-  })
+  // 3. LOGIN function
+  const handleLogin = async (e) => {
+    e.preventDefault()
+    const { error } = await supabase.auth.signInWithOtp({ 
+      email,
+      options: { emailRedirectTo: 'https://circuitburst.onrender.com' }
+    })
+    if (error) alert("Login Error: " + error.message)
+    else alert("Check your email for the magic link!")
+  }
+
+  // 4. POST function
+  const handlePost = async (e) => {
+    e.preventDefault()
+    if (!postText) return
+    
+    const { error } = await supabase
+      .from('posts')
+      .insert([{ user_email: user.email, content: postText }])
+
+    if (error) {
+      alert("Post Error: " + error.message)
+    } else {
+      setPostText('')
+      fetchPosts() // Immediately show the new post
+    }
+  }
+
+  if (loading) return <div style={{color: 'white', textAlign: 'center', padding: '50px'}}>Loading Circuitburst...</div>
 
   return (
-    <div style={{ backgroundColor: '#0f172a', color: 'white', minHeight: '100vh', fontFamily: 'sans-serif' }}>
-      <header style={{ textAlign: 'center', padding: '20px' }}>
-        <h1 style={{ margin: 0, color: '#38bdf8' }}>⚡ Circuitburst</h1>
-      </header>
+    <div style={{ backgroundColor: '#0f172a', color: 'white', minHeight: '100vh', fontFamily: 'sans-serif', padding: '20px' }}>
+      <h1 style={{ textAlign: 'center', color: '#38bdf8' }}>⚡ Circuitburst</h1>
 
-      <nav style={navStyle}>
-        <button style={btnStyle('feed')} onClick={() => setActiveTab('feed')}>Newsfeed</button>
-        <button style={btnStyle('dms')} onClick={() => setActiveTab('dms')}>DMs</button>
-        <button style={btnStyle('premium')} onClick={() => setActiveTab('premium')}>Premium</button>
-      </nav>
+      {!user ? (
+        /* LOGIN SCREEN */
+        <div style={{ maxWidth: '400px', margin: '50px auto', background: '#1e293b', padding: '30px', borderRadius: '15px' }}>
+          <h2>Sign In / Sign Up</h2>
+          <form onSubmit={handleLogin}>
+            <input type="email" placeholder="Email" required value={email} onChange={(e) => setEmail(e.target.value)}
+              style={{ width: '90%', padding: '10px', marginBottom: '10px', borderRadius: '5px' }} />
+            <button type="submit" style={{ width: '100%', padding: '10px', backgroundColor: '#38bdf8', border: 'none', borderRadius: '5px', fontWeight: 'bold' }}>Send Magic Link</button>
+          </form>
+        </div>
+      ) : (
+        /* LOGGED IN CONTENT */
+        <div style={{ maxWidth: '600px', margin: '0 auto' }}>
+          <p>Logged in as: <strong>{user.email}</strong> | <button onClick={() => supabase.auth.signOut().then(() => window.location.reload())} style={{background: 'none', color: '#ef4444', border: 'none', cursor: 'pointer'}}>Sign Out</button></p>
+          
+          <form onSubmit={handlePost} style={{ marginBottom: '30px' }}>
+            <textarea value={postText} onChange={(e) => setPostText(e.target.value)} placeholder="What's on your mind?"
+              style={{ width: '100%', padding: '10px', borderRadius: '10px', background: '#1e293b', color: 'white', border: '1px solid #334155' }} />
+            <button type="submit" style={{ marginTop: '10px', padding: '10px 25px', backgroundColor: '#38bdf8', border: 'none', borderRadius: '5px', fontWeight: 'bold' }}>Post</button>
+          </form>
 
-      <main style={{ maxWidth: '500px', margin: '20px auto', padding: '0 15px' }}>
-        
-        {/* TAB 1: NEWSFEED */}
-        {activeTab === 'feed' && (
-          <div>
-            <form onSubmit={handlePost} style={{ marginBottom: '20px' }}>
-              <textarea 
-                value={postText} onChange={(e) => setPostText(e.target.value)}
-                placeholder="Share something..."
-                style={{ width: '100%', borderRadius: '10px', padding: '10px', background: '#1e293b', color: 'white', border: '1px solid #334155' }}
-              />
-              <button type="submit" style={{ marginTop: '10px', background: '#38bdf8', border: 'none', padding: '10px 20px', borderRadius: '5px', fontWeight: 'bold' }}>Post</button>
-            </form>
-            {posts.map(p => (
-              <div key={p.id} style={{ background: '#1e293b', padding: '15px', borderRadius: '10px', marginBottom: '10px', textAlign: 'left' }}>
-                <div style={{ color: '#38bdf8', fontSize: '0.8rem', marginBottom: '5px' }}>{p.user}</div>
-                <div>{p.content}</div>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {/* TAB 2: DMs */}
-        {activeTab === 'dms' && (
-          <div style={{ textAlign: 'center', paddingTop: '50px' }}>
-            <h2>Messages</h2>
-            <p style={{ color: '#94a3b8' }}>Connect with other users. (Login required)</p>
-          </div>
-        )}
-
-        {/* TAB 3: PREMIUM */}
-        {activeTab === 'premium' && (
-          <div style={{ textAlign: 'center', padding: '30px', background: 'linear-gradient(to bottom, #1e293b, #0f172a)', borderRadius: '20px', border: '2px solid #6366f1' }}>
-            <h2>Circuitburst Premium</h2>
-            <p style={{ fontSize: '1.2rem' }}>$6.99 / month</p>
-            <ul style={{ textAlign: 'left', display: 'inline-block', marginBottom: '20px', color: '#94a3b8' }}>
-              <li>✅ Blue Verification Badge</li>
-              <li>✅ Ad-Free Experience</li>
-              <li>✅ Priority DMs</li>
-            </ul>
-            <br />
-            <button 
-              onClick={() => window.location.href = 'https://buy.stripe.com/your_link_here'}
-              style={{ padding: '15px 30px', background: '#6366f1', color: 'white', border: 'none', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer', fontSize: '1.1rem' }}
-            >
-              Upgrade Now
-            </button>
-          </div>
-        )}
-      </main>
+          {posts.map(p => (
+            <div key={p.id} style={{ background: '#1e293b', padding: '15px', borderRadius: '10px', marginBottom: '10px' }}>
+              <small style={{ color: '#38bdf8' }}>{p.user_email}</small>
+              <p>{p.content}</p>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   )
 }
 
-const root = document.getElementById('root')
-if (root) { ReactDOM.createRoot(root).render(<App />) }
+ReactDOM.createRoot(document.getElementById('root')).render(<App />)
