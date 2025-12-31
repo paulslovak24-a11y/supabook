@@ -24,11 +24,11 @@ function App() {
   }, []);
 
   async function fetchAll(myEmail) {
-    // Fetch Newsfeed
+    // Newsfeed Fetch
     const { data: postData } = await supabase.from('posts').select('*').order('created_at', { ascending: false });
     if (postData) setPosts(postData);
     
-    // Fetch DMs (Messages sent TO me OR BY me)
+    // DM Fetch
     const { data: dmData } = await supabase.from('messages')
       .select('*')
       .or(`sender_email.eq.${myEmail.toLowerCase()},receiver_email.eq.${myEmail.toLowerCase()}`)
@@ -66,7 +66,7 @@ function App() {
       setInputText('');
       setRecipient('');
       fetchAll(user.email);
-      alert("Message sent successfully!");
+      alert("Message sent!");
     }
   }
 
@@ -81,9 +81,9 @@ function App() {
       <div style={{ backgroundColor: '#0f172a', color: 'white', minHeight: '100vh', fontFamily: 'sans-serif' }}>
         <CircuitHeader />
         <center style={{ marginTop: '50px' }}>
-          <form onSubmit={async (e) => { e.preventDefault(); await supabase.auth.signInWithOtp({ email }); alert("Link sent!"); }}>
-            <input type="email" placeholder="Email" onChange={e => setEmail(e.target.value)} style={{ padding: '12px', borderRadius: '8px' }} />
-            <button type="submit" style={{ padding: '12px', marginLeft: '5px', background: '#38bdf8', border: 'none', borderRadius: '8px', fontWeight: 'bold' }}>Login</button>
+          <form onSubmit={async (e) => { e.preventDefault(); await supabase.auth.signInWithOtp({ email }); alert("Check email for login link!"); }}>
+            <input type="email" placeholder="Email" onChange={e => setEmail(e.target.value)} style={{ padding: '12px', borderRadius: '8px', border: 'none', width: '220px' }} />
+            <button type="submit" style={{ padding: '12px 20px', marginLeft: '5px', background: '#38bdf8', border: 'none', borderRadius: '8px', fontWeight: 'bold' }}>Login</button>
           </form>
         </center>
       </div>
@@ -95,49 +95,67 @@ function App() {
       <CircuitHeader />
       
       <nav style={{ display: 'flex', justifyContent: 'center', gap: '10px', padding: '15px' }}>
-        <button onClick={() => setActiveTab('feed')} style={{ background: activeTab === 'feed' ? '#38bdf8' : '#1e293b', color: activeTab === 'feed' ? '#000' : '#fff', padding: '10px 20px', border: 'none', borderRadius: '5px', fontWeight: 'bold' }}>Feed</button>
-        <button onClick={() => setActiveTab('dms')} style={{ background: activeTab === 'dms' ? '#38bdf8' : '#1e293b', color: activeTab === 'dms' ? '#000' : '#fff', padding: '10px 20px', border: 'none', borderRadius: '5px', fontWeight: 'bold' }}>DMs</button>
+        <button onClick={() => setActiveTab('feed')} style={{ background: activeTab === 'feed' ? '#38bdf8' : '#1e293b', color: activeTab === 'feed' ? '#000' : '#fff', padding: '10px 15px', border: 'none', borderRadius: '5px', fontWeight: 'bold' }}>Feed</button>
+        <button onClick={() => setActiveTab('dms')} style={{ background: activeTab === 'dms' ? '#38bdf8' : '#1e293b', color: activeTab === 'dms' ? '#000' : '#fff', padding: '10px 15px', border: 'none', borderRadius: '5px', fontWeight: 'bold' }}>DMs</button>
+        <button onClick={() => setActiveTab('pro')} style={{ background: activeTab === 'pro' ? '#6366f1' : '#1e293b', color: '#fff', padding: '10px 15px', border: 'none', borderRadius: '5px', fontWeight: 'bold' }}>Pro</button>
+        <button onClick={() => supabase.auth.signOut().then(() => window.location.reload())} style={{ background: 'none', color: '#ef4444', border: 'none', fontSize: '0.8rem', cursor: 'pointer' }}>Logout</button>
       </nav>
 
       <div style={{ maxWidth: '500px', margin: '0 auto', padding: '0 15px' }}>
-        {activeTab === 'feed' ? (
+        {activeTab === 'feed' && (
           <div>
             <form onSubmit={handlePost}>
-              <textarea value={inputText} onChange={e => setInputText(e.target.value)} placeholder="Share an update..." style={{ width: '95%', height: '80px', borderRadius: '10px', padding: '10px', background: '#1e293b', color: '#fff' }} />
+              <textarea value={inputText} onChange={e => setInputText(e.target.value)} placeholder="Share an update..." style={{ width: '95%', height: '80px', borderRadius: '10px', padding: '10px', background: '#1e293b', color: '#fff', border: '1px solid #334155' }} />
               <button type="submit" style={{ width: '100%', padding: '12px', background: '#38bdf8', border: 'none', borderRadius: '8px', fontWeight: 'bold', marginTop: '10px' }}>Post</button>
             </form>
             <div style={{ marginTop: '20px' }}>
               {posts.map(p => (
-                <div key={p.id} style={{ background: '#1e293b', padding: '15px', borderRadius: '12px', marginBottom: '10px', position: 'relative' }}>
+                <div key={p.id} style={{ background: '#1e293b', padding: '15px', borderRadius: '12px', marginBottom: '10px', position: 'relative', border: '1px solid #334155' }}>
                   <span style={{ color: '#38bdf8', fontWeight: 'bold' }}>@{p.user_email?.split('@')[0]}</span>
                   {p.user_email?.toLowerCase() === user.email?.toLowerCase() && (
                     <button onClick={() => handleDeletePost(p.id)} style={{ position: 'absolute', right: '15px', background: '#ef4444', color: 'white', border: 'none', borderRadius: '4px', fontSize: '0.6rem', padding: '4px 8px' }}>DELETE</button>
                   )}
-                  <p>{p.content}</p>
+                  <p style={{ marginTop: '10px' }}>{p.content}</p>
                 </div>
               ))}
             </div>
           </div>
-        ) : (
+        )}
+
+        {activeTab === 'dms' && (
           <div>
             <form onSubmit={handleSendDM} style={{ background: '#1e293b', padding: '15px', borderRadius: '12px' }}>
-              <input type="email" placeholder="Recipient's EXACT Email" value={recipient} onChange={e => setRecipient(e.target.value)} style={{ width: '95%', padding: '10px', marginBottom: '10px', borderRadius: '5px' }} />
-              <textarea value={inputText} onChange={e => setInputText(e.target.value)} placeholder="Private message..." style={{ width: '95%', padding: '10px', borderRadius: '5px' }} />
-              <button type="submit" style={{ width: '100%', padding: '12px', background: '#6366f1', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 'bold', marginTop: '10px' }}>Send Private Message</button>
+              <input type="email" placeholder="Recipient's Email" value={recipient} onChange={e => setRecipient(e.target.value)} style={{ width: '95%', padding: '10px', marginBottom: '10px', borderRadius: '5px', background: '#0f172a', color: 'white', border: '1px solid #334155' }} />
+              <textarea value={inputText} onChange={e => setInputText(e.target.value)} placeholder="Message..." style={{ width: '95%', padding: '10px', borderRadius: '5px', background: '#0f172a', color: 'white', border: '1px solid #334155' }} />
+              <button type="submit" style={{ width: '100%', padding: '12px', background: '#6366f1', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 'bold', marginTop: '10px' }}>Send Private DM</button>
             </form>
             <div style={{ marginTop: '20px' }}>
               {dms.map(m => (
                 <div key={m.id} style={{ 
                   background: m.sender_email === user.email.toLowerCase() ? '#334155' : '#1e293b', 
-                  padding: '10px', borderRadius: '10px', marginBottom: '10px',
+                  padding: '12px', borderRadius: '10px', marginBottom: '10px',
                   textAlign: m.sender_email === user.email.toLowerCase() ? 'right' : 'left',
-                  borderLeft: m.sender_email !== user.email.toLowerCase() ? '4px solid #38bdf8' : 'none'
+                  border: '1px solid #334155'
                 }}>
                   <small style={{ color: '#94a3b8' }}>{m.sender_email === user.email.toLowerCase() ? 'You' : m.sender_email}</small>
                   <p style={{ margin: '5px 0' }}>{m.message_content}</p>
                 </div>
               ))}
             </div>
+          </div>
+        )}
+
+        {activeTab === 'pro' && (
+          <div style={{ textAlign: 'center', padding: '40px', background: 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)', borderRadius: '25px', border: '2px solid #6366f1' }}>
+            <h2 style={{ color: '#6366f1', fontSize: '2rem' }}>Circuitburst Pro</h2>
+            <p style={{ color: '#94a3b8', marginBottom: '20px' }}>Get exclusive features and support the circuit.</p>
+            <h1 style={{ fontSize: '3.5rem', margin: '20px 0' }}>$6.99<span style={{ fontSize: '1rem' }}>/mo</span></h1>
+            <button 
+              onClick={() => window.location.href = 'https://buy.stripe.com/14A5kx16j6TF5qt8D57ss00'} 
+              style={{ width: '100%', padding: '20px', background: '#6366f1', color: 'white', border: 'none', borderRadius: '15px', fontWeight: 'bold', fontSize: '1.2rem', cursor: 'pointer' }}
+            >
+              Upgrade Now
+            </button>
           </div>
         )}
       </div>
