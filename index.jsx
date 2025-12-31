@@ -24,11 +24,9 @@ function App() {
   }, []);
 
   async function fetchAll(myEmail) {
-    // Newsfeed Fetch
     const { data: postData } = await supabase.from('posts').select('*').order('created_at', { ascending: false });
     if (postData) setPosts(postData);
     
-    // DM Fetch
     const { data: dmData } = await supabase.from('messages')
       .select('*')
       .or(`sender_email.eq.${myEmail.toLowerCase()},receiver_email.eq.${myEmail.toLowerCase()}`)
@@ -53,21 +51,15 @@ function App() {
   const handleSendDM = async (e) => {
     e.preventDefault();
     if (!inputText.trim() || !recipient.trim()) return;
-    
-    const { error } = await supabase.from('messages').insert([{ 
+    await supabase.from('messages').insert([{ 
       sender_email: user.email.toLowerCase(), 
       receiver_email: recipient.toLowerCase().trim(), 
       message_content: inputText 
     }]);
-
-    if (error) {
-      alert("DM Failed: " + error.message);
-    } else {
-      setInputText('');
-      setRecipient('');
-      fetchAll(user.email);
-      alert("Message sent!");
-    }
+    setInputText('');
+    setRecipient('');
+    fetchAll(user.email);
+    alert("Message sent!");
   }
 
   const CircuitHeader = () => (
@@ -105,62 +97,4 @@ function App() {
         {activeTab === 'feed' && (
           <div>
             <form onSubmit={handlePost}>
-              <textarea value={inputText} onChange={e => setInputText(e.target.value)} placeholder="Share an update..." style={{ width: '95%', height: '80px', borderRadius: '10px', padding: '10px', background: '#1e293b', color: '#fff', border: '1px solid #334155' }} />
-              <button type="submit" style={{ width: '100%', padding: '12px', background: '#38bdf8', border: 'none', borderRadius: '8px', fontWeight: 'bold', marginTop: '10px' }}>Post</button>
-            </form>
-            <div style={{ marginTop: '20px' }}>
-              {posts.map(p => (
-                <div key={p.id} style={{ background: '#1e293b', padding: '15px', borderRadius: '12px', marginBottom: '10px', position: 'relative', border: '1px solid #334155' }}>
-                  <span style={{ color: '#38bdf8', fontWeight: 'bold' }}>@{p.user_email?.split('@')[0]}</span>
-                  {p.user_email?.toLowerCase() === user.email?.toLowerCase() && (
-                    <button onClick={() => handleDeletePost(p.id)} style={{ position: 'absolute', right: '15px', background: '#ef4444', color: 'white', border: 'none', borderRadius: '4px', fontSize: '0.6rem', padding: '4px 8px' }}>DELETE</button>
-                  )}
-                  <p style={{ marginTop: '10px' }}>{p.content}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {activeTab === 'dms' && (
-          <div>
-            <form onSubmit={handleSendDM} style={{ background: '#1e293b', padding: '15px', borderRadius: '12px' }}>
-              <input type="email" placeholder="Recipient's Email" value={recipient} onChange={e => setRecipient(e.target.value)} style={{ width: '95%', padding: '10px', marginBottom: '10px', borderRadius: '5px', background: '#0f172a', color: 'white', border: '1px solid #334155' }} />
-              <textarea value={inputText} onChange={e => setInputText(e.target.value)} placeholder="Message..." style={{ width: '95%', padding: '10px', borderRadius: '5px', background: '#0f172a', color: 'white', border: '1px solid #334155' }} />
-              <button type="submit" style={{ width: '100%', padding: '12px', background: '#6366f1', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 'bold', marginTop: '10px' }}>Send Private DM</button>
-            </form>
-            <div style={{ marginTop: '20px' }}>
-              {dms.map(m => (
-                <div key={m.id} style={{ 
-                  background: m.sender_email === user.email.toLowerCase() ? '#334155' : '#1e293b', 
-                  padding: '12px', borderRadius: '10px', marginBottom: '10px',
-                  textAlign: m.sender_email === user.email.toLowerCase() ? 'right' : 'left',
-                  border: '1px solid #334155'
-                }}>
-                  <small style={{ color: '#94a3b8' }}>{m.sender_email === user.email.toLowerCase() ? 'You' : m.sender_email}</small>
-                  <p style={{ margin: '5px 0' }}>{m.message_content}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {activeTab === 'pro' && (
-          <div style={{ textAlign: 'center', padding: '40px', background: 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)', borderRadius: '25px', border: '2px solid #6366f1' }}>
-            <h2 style={{ color: '#6366f1', fontSize: '2rem' }}>Circuitburst Pro</h2>
-            <p style={{ color: '#94a3b8', marginBottom: '20px' }}>Get exclusive features and support the circuit.</p>
-            <h1 style={{ fontSize: '3.5rem', margin: '20px 0' }}>$6.99<span style={{ fontSize: '1rem' }}>/mo</span></h1>
-            <button 
-              onClick={() => window.location.href = 'https://buy.stripe.com/14A5kx16j6TF5qt8D57ss00'} 
-              style={{ width: '100%', padding: '20px', background: '#6366f1', color: 'white', border: 'none', borderRadius: '15px', fontWeight: 'bold', fontSize: '1.2rem', cursor: 'pointer' }}
-            >
-              Upgrade Now
-            </button>
-          </div>
-        )}
-      </div>
-    </div>
-  )
-}
-
-ReactDOM.createRoot(document.getElementById('root')).render(<App />)
+              <textarea value={inputText} onChange={e => setInputText(e.target.value)} placeholder="Share an update..." style={{ width: '
