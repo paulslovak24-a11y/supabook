@@ -87,14 +87,4 @@ function App() {
       <CircuitHeader />
       
       <nav style={{ display: 'flex', justifyContent: 'center', gap: '10px', padding: '15px' }}>
-        <button onClick={() => setActiveTab('feed')} style={{ background: activeTab === 'feed' ? '#38bdf8' : '#1e293b', color: activeTab === 'feed' ? '#000' : '#fff', padding: '10px 15px', border: 'none', borderRadius: '5px', fontWeight: 'bold' }}>Feed</button>
-        <button onClick={() => setActiveTab('dms')} style={{ background: activeTab === 'dms' ? '#38bdf8' : '#1e293b', color: activeTab === 'dms' ? '#000' : '#fff', padding: '10px 15px', border: 'none', borderRadius: '5px', fontWeight: 'bold' }}>DMs</button>
-        <button onClick={() => setActiveTab('pro')} style={{ background: activeTab === 'pro' ? '#6366f1' : '#1e293b', color: '#fff', padding: '10px 15px', border: 'none', borderRadius: '5px', fontWeight: 'bold' }}>Pro</button>
-        <button onClick={() => supabase.auth.signOut().then(() => window.location.reload())} style={{ background: 'none', color: '#ef4444', border: 'none', fontSize: '0.8rem', cursor: 'pointer' }}>Logout</button>
-      </nav>
-
-      <div style={{ maxWidth: '500px', margin: '0 auto', padding: '0 15px' }}>
-        {activeTab === 'feed' && (
-          <div>
-            <form onSubmit={handlePost}>
-              <textarea value={inputText} onChange={e => setInputText(e.target.value)} placeholder="Share an update..." style={{ width: '
+        <button onClick={() => setActiveTab('feed')} style={{ background: activeTab === 'feed' ? '#38bdf8' : '#1e293b', color: activeTab === 'feed' ? '#000' : '#fff', padding: '10px 15px', border: 'none', borderRadius: '5px
